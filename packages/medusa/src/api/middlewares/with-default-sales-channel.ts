@@ -13,7 +13,7 @@ export function withDefaultSalesChannel({
   attachChannelAsArray,
 }: {
   attachChannelAsArray?: boolean
-}): (req: Request, res: Response, next: NextFunction) => Promise<void> {
+} = {}): (req: Request, res: Response, next: NextFunction) => Promise<void> {
   return async (req: Request, _, next: NextFunction) => {
     const featureFlagRouter = req.scope.resolve(
       "featureFlagRouter"
