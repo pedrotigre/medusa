@@ -60,6 +60,7 @@ export const allowedStoreVariantRelations = [
  *   - variant
  * properties:
  *   variant:
+ *     description: "Product variant description."
  *     $ref: "#/components/schemas/PricedVariant"
  */
 export type StoreVariantsRes = {
@@ -82,6 +83,7 @@ export type StoreVariantsRes = {
  * properties:
  *   variants:
  *     type: array
+ *     description: "An array of product variant descriptions."
  *     items:
  *       $ref: "#/components/schemas/PricedVariant"
  */
