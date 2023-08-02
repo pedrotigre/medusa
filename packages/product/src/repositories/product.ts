@@ -2,15 +2,14 @@ import {
   Product,
   ProductCategory,
   ProductCollection,
-  ProductType,
   ProductTag,
+  ProductType,
 } from "@models"
 
 import {
   FilterQuery as MikroFilterQuery,
   FindOptions as MikroOptions,
   LoadStrategy,
-  wrap
 } from "@mikro-orm/core"
 
 import {
@@ -20,12 +19,17 @@ import {
   WithRequiredProperty,
 } from "@medusajs/types"
 import { SqlEntityManager } from "@mikro-orm/postgresql"
-import { MedusaError, isDefined, InjectTransactionManager, MedusaContext } from "@medusajs/utils"
+import {
+  DALUtils,
+  InjectTransactionManager,
+  isDefined,
+  MedusaContext,
+  MedusaError,
+} from "@medusajs/utils"
 
-import { AbstractBaseRepository } from "./base"
 import { ProductServiceTypes } from "../types/services"
 
-export class ProductRepository extends AbstractBaseRepository<Product> {
+export class ProductRepository extends DALUtils.MikroOrmAbstractBaseRepository<Product> {
   protected readonly manager_: SqlEntityManager
 
   constructor({ manager }: { manager: SqlEntityManager }) {
@@ -38,9 +42,7 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
     findOptions: DAL.FindOptions<Product> = { where: {} },
     context: Context = {}
   ): Promise<Product[]> {
-    // TODO: use the getter method (getActiveManager)
-    const manager = (context.transactionManager ??
-      this.manager_) as SqlEntityManager
+    const manager = this.getActiveManager<SqlEntityManager>(context)
 
     const findOptions_ = { ...findOptions }
     findOptions_.options ??= {}
@@ -62,12 +64,10 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
     findOptions: DAL.FindOptions<Product> = { where: {} },
     context: Context = {}
   ): Promise<[Product[], number]> {
+    const manager = this.getActiveManager<SqlEntityManager>(context)
+
     const findOptions_ = { ...findOptions }
     findOptions_.options ??= {}
-
-    if (context.transactionManager) {
-      Object.assign(findOptions_.options, { ctx: context.transactionManager })
-    }
 
     Object.assign(findOptions_.options, {
       strategy: LoadStrategy.SELECT_IN,
@@ -75,7 +75,7 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
 
     await this.mutateNotInCategoriesConstraints(findOptions_)
 
-    return await this.manager_.findAndCount(
+    return await manager.findAndCount(
       Product,
       findOptions_.where as MikroFilterQuery<Product>,
       findOptions_.options as MikroOptions<Product>
@@ -90,9 +90,7 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
     findOptions: DAL.FindOptions<Product> = { where: {} },
     context: Context = {}
   ): Promise<void> {
-    // TODO: use the getter method (getActiveManager)
-    const manager = (context.transactionManager ??
-      this.manager_) as SqlEntityManager
+    const manager = this.getActiveManager<SqlEntityManager>(context)
 
     if (findOptions.where.categories?.id?.["$nin"]) {
       const productsInCategories = await manager.find(
@@ -163,12 +161,10 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
 
     data.forEach((productData) => {
       categoryIds = categoryIds.concat(
-        productData?.categories?.map(c => c.id) || []
+        productData?.categories?.map((c) => c.id) || []
       )
 
-      tagIds = tagIds.concat(
-        productData?.tags?.map(c => c.id) || []
-      )
+      tagIds = tagIds.concat(productData?.tags?.map((c) => c.id) || [])
 
       if (productData.collection_id) {
         collectionIds.push(productData.collection_id)
@@ -179,27 +175,39 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
       }
     })
 
-    const productsToUpdate = await manager.find(Product, {
-      id: data.map((updateData) => updateData.id)
-    }, {
-      populate: ["tags", "categories"]
-    })
+    const productsToUpdate = await manager.find(
+      Product,
+      {
+        id: data.map((updateData) => updateData.id),
+      },
+      {
+        populate: ["tags", "categories"],
+      }
+    )
 
-    const collectionsToAssign = collectionIds.length ? await manager.find(ProductCollection, {
-      id: collectionIds
-    }) : []
+    const collectionsToAssign = collectionIds.length
+      ? await manager.find(ProductCollection, {
+          id: collectionIds,
+        })
+      : []
 
-    const typesToAssign = typeIds.length ? await manager.find(ProductType, {
-      id: typeIds
-    }) : []
+    const typesToAssign = typeIds.length
+      ? await manager.find(ProductType, {
+          id: typeIds,
+        })
+      : []
 
-    const categoriesToAssign = categoryIds.length ? await manager.find(ProductCategory, {
-      id: categoryIds
-    }) : []
+    const categoriesToAssign = categoryIds.length
+      ? await manager.find(ProductCategory, {
+          id: categoryIds,
+        })
+      : []
 
-    const tagsToAssign = tagIds.length ? await manager.find(ProductTag, {
-      id: tagIds
-    }) : []
+    const tagsToAssign = tagIds.length
+      ? await manager.find(ProductTag, {
+          id: tagIds,
+        })
+      : []
 
     const categoriesToAssignMap = new Map<string, ProductCategory>(
       categoriesToAssign.map((category) => [category.id, category])
@@ -233,8 +241,8 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
         }
 
         const {
-          categories: categoriesData,
-          tags: tagsData,
+          categories: categoriesData = [],
+          tags: tagsData = [],
           collection_id: collectionId,
           type_id: typeId,
         } = updateData
@@ -255,10 +263,15 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
             }
           }
 
-          const categoryIdsToAssignSet = new Set(categoriesData.map(cd => cd.id))
-          const categoriesToDelete = product.categories.getItems().filter(
-            (existingCategory) => !categoryIdsToAssignSet.has(existingCategory.id)
+          const categoryIdsToAssignSet = new Set(
+            categoriesData.map((cd) => cd.id)
           )
+          const categoriesToDelete = product.categories
+            .getItems()
+            .filter(
+              (existingCategory) =>
+                !categoryIdsToAssignSet.has(existingCategory.id)
+            )
 
           await product.categories.remove(categoriesToDelete)
         }
@@ -278,22 +291,22 @@ export class ProductRepository extends AbstractBaseRepository<Product> {
             }
           }
 
-          const tagIdsToAssignSet = new Set(tagsData.map(cd => cd.id))
-          const tagsToDelete = product.tags.getItems().filter(
-            (existingTag) => !tagIdsToAssignSet.has(existingTag.id)
-          )
+          const tagIdsToAssignSet = new Set(tagsData.map((cd) => cd.id))
+          const tagsToDelete = product.tags
+            .getItems()
+            .filter((existingTag) => !tagIdsToAssignSet.has(existingTag.id))
 
           await product.tags.remove(tagsToDelete)
         }
 
         if (isDefined(collectionId)) {
-          const collection = collectionsToAssignMap.get(collectionId)
+          const collection = collectionsToAssignMap.get(collectionId!)
 
           product.collection = collection || null
         }
 
         if (isDefined(typeId)) {
-          const type = typesToAssignMap.get(typeId)
+          const type = typesToAssignMap.get(typeId!)
 
           if (type) {
             product.type = type

@@ -3,4 +3,4 @@
 "@medusajs/admin": patch
 ---
 
-fix(admin-ui): Add missing SO relation
+fix(admin-ui): Customer Groups in Pricing + TIP

@@ -8,11 +8,12 @@ import {
   WithRequiredProperty,
 } from "@medusajs/types"
 import {
+  InjectManager,
   InjectTransactionManager,
+  isDefined,
   MedusaContext,
   MedusaError,
   ModulesSdkUtils,
-  isDefined,
 } from "@medusajs/utils"
 import { ProductRepository } from "@repositories"
 
@@ -30,10 +31,11 @@ export default class ProductService<TEntity extends Product = Product> {
     this.productRepository_ = productRepository
   }
 
+  @InjectManager("productRepository_")
   async retrieve(
     productId: string,
     config: FindConfig<ProductTypes.ProductDTO> = {},
-    sharedContext?: Context
+    @MedusaContext() sharedContext: Context = {}
   ): Promise<TEntity> {
     if (!isDefined(productId)) {
       throw new MedusaError(
@@ -42,9 +44,12 @@ export default class ProductService<TEntity extends Product = Product> {
       )
     }
 
-    const queryOptions = ModulesSdkUtils.buildQuery<Product>({
-      id: productId,
-    }, config)
+    const queryOptions = ModulesSdkUtils.buildQuery<Product>(
+      {
+        id: productId,
+      },
+      config
+    )
 
     const product = await this.productRepository_.find(
       queryOptions,
@@ -61,10 +66,11 @@ export default class ProductService<TEntity extends Product = Product> {
     return product[0] as TEntity
   }
 
+  @InjectManager("productRepository_")
   async list(
     filters: ProductTypes.FilterableProductProps = {},
     config: FindConfig<ProductTypes.ProductDTO> = {},
-    sharedContext?: Context
+    @MedusaContext() sharedContext: Context = {}
   ): Promise<TEntity[]> {
     if (filters.category_ids) {
       if (Array.isArray(filters.category_ids)) {
@@ -86,10 +92,11 @@ export default class ProductService<TEntity extends Product = Product> {
     )) as TEntity[]
   }
 
+  @InjectManager("productRepository_")
   async listAndCount(
     filters: ProductTypes.FilterableProductProps = {},
     config: FindConfig<ProductTypes.ProductDTO> = {},
-    sharedContext?: Context
+    @MedusaContext() sharedContext: Context = {}
   ): Promise<[TEntity[], number]> {
     if (filters.category_ids) {
       if (Array.isArray(filters.category_ids)) {
@@ -136,7 +143,7 @@ export default class ProductService<TEntity extends Product = Product> {
     data: ProductServiceTypes.UpdateProductDTO[],
     @MedusaContext() sharedContext: Context = {}
   ): Promise<TEntity[]> {
-    return await (this.productRepository_ as ProductRepository).update(
+    return (await (this.productRepository_ as ProductRepository).update(
       data as WithRequiredProperty<
         ProductServiceTypes.UpdateProductDTO,
         "id"
@@ -144,7 +151,7 @@ export default class ProductService<TEntity extends Product = Product> {
       {
         transactionManager: sharedContext.transactionManager,
       }
-    ) as TEntity[]
+    )) as TEntity[]
   }
 
   @InjectTransactionManager(doNotForceTransaction, "productRepository_")
@@ -161,7 +168,7 @@ export default class ProductService<TEntity extends Product = Product> {
   async softDelete(
     productIds: string[],
     @MedusaContext() sharedContext: Context = {}
-  ): Promise<TEntity[]> {
+  ): Promise<[TEntity[], Record<string, unknown[]>]> {
     return await this.productRepository_.softDelete(productIds, {
       transactionManager: sharedContext.transactionManager,
     })
