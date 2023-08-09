@@ -1,5 +1,21 @@
 # @medusajs/orchestration
 
+## 0.2.0
+
+### Minor Changes
+
+- [#4697](https://github.com/medusajs/medusa/pull/4697) [`c0ca00290`](https://github.com/medusajs/medusa/commit/c0ca00290106fbdc8e15077bc8d1c3eafbef59f2) Thanks [@carlos-r-l-rodrigues](https://github.com/carlos-r-l-rodrigues)! - Add pipe onComplete callback and preparation function to exportsWorkflow
+
+### Patch Changes
+
+- [#4716](https://github.com/medusajs/medusa/pull/4716) [`ac866ebb5`](https://github.com/medusajs/medusa/commit/ac866ebb5197ee694dda91824b501109012a3dd1) Thanks [@adrien2p](https://github.com/adrien2p)! - test(): Test the create product workflow compensation
+  fix(orchestration): Fix the transaction state after compensating with no compensation steps in the middle
+  chore(workflows): Export and naming
+  feat(types): Update product workflow input types
+  feat(medusa): Update product workflow usage and cleanup endpoint
+- Updated dependencies [[`3f3a84262`](https://github.com/medusajs/medusa/commit/3f3a84262ce9cbd911923278a54e301fbe9a4634)]:
+  - @medusajs/utils@1.9.6
+
 ## 0.1.0
 
 ### Minor Changes
